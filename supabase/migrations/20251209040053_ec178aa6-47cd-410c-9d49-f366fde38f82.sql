@@ -1,0 +1,2 @@
+-- Remove foreign key constraint to allow corrective actions without requiring inspection record first
+ALTER TABLE public.corrective_actions DROP CONSTRAINT IF EXISTS corrective_actions_inspection_id_fkey;
