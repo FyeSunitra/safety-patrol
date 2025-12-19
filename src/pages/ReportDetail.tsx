@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { InspectionRecord } from "@/types/inspection";
+import { InspectionItem, InspectionRecord } from "@/types/inspection";
 import { DIVISIONS } from "@/data/divisions";
 import { generatePDF } from "@/lib/pdfGenerator";
 
@@ -41,14 +41,16 @@ const ReportDetail = () => {
                     date: data.date,
                     time: data.time || "",
                     building: data.building,
-                    floor: data.floor || "",
+                    floor: (data as any).floor || "",
                     division: data.division,
                     department: data.department,
                     inspectorName: data.inspector_name,
                     surveyTeam: data.inspector_name
                         ? data.inspector_name.split(", ")
                         : [],
-                    items: Array.isArray(data.items) ? data.items : [],
+                    items: Array.isArray(data.items)
+                        ? (data.items as unknown as InspectionItem[])
+                        : [],
                     createdAt: data.created_at,
                     updatedAt: data.updated_at,
                 };
