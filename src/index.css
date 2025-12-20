@@ -2,102 +2,138 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Design system: โทนม่วงพาสเทลสว่าง พื้นหลังขาว */
 
 @layer base {
   :root {
-    --background: 30 20% 96%;
-    --foreground: 20 14% 15%;
+    /* พื้นหลังขาวบริสุทธิ์ */
+    --background: 0 0% 100%;
+    --foreground: 256 25% 25%;
 
     --card: 0 0% 100%;
-    --card-foreground: 20 14% 15%;
+    --card-foreground: 256 25% 25%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 20 14% 15%;
+    --popover-foreground: 256 25% 25%;
 
-    --primary: 28 95% 55%;
+    /* โทนหลัก: ม่วงสว่างนุ่มนวล */
+    --primary: 253 70% 70%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 45 100% 51%;
-    --secondary-foreground: 20 14% 15%;
+    /* รอง: ฟ้าอมม่วงสว่าง */
+    --secondary: 236 85% 78%;
+    --secondary-foreground: 256 25% 25%;
 
-    --muted: 30 20% 92%;
-    --muted-foreground: 20 10% 45%;
+    /* พื้นหลังบาง ๆ สำหรับกรอบ - ม่วงซีดมาก */
+    --muted: 250 50% 97%;
+    --muted-foreground: 256 15% 50%;
 
-    --accent: 142 76% 36%;
-    --accent-foreground: 0 0% 100%;
+    /* accent ม่วงพาสเทลอ่อน */
+    --accent: 256 70% 80%;
+    --accent-foreground: 256 25% 25%;
 
-    --success: 142 76% 36%;
+    /* สีสถานะ */
+    --success: 150 60% 45%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 45 100% 51%;
+    --warning: 45 97% 60%;
     --warning-foreground: 20 14% 15%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 20% 88%;
-    --input: 30 20% 88%;
-    --ring: 28 95% 55%;
+    /* เส้นขอบ / input - เทาอ่อนมาก */
+    --border: 250 30% 92%;
+    --input: 250 30% 92%;
+    --ring: 253 70% 70%;
 
     --radius: 0.75rem;
 
-    --chart-1: 28 95% 55%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 45 100% 51%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 280 65% 60%;
+    /* สีสำหรับ chart - โทนสว่างนุ่มนวล */
+    --chart-1: 253 70% 70%;
+    /* ม่วงหลักสว่าง */
+    --chart-2: 236 85% 78%;
+    /* ฟ้าอมม่วงสว่าง */
+    --chart-3: 254 75% 88%;
+    /* ม่วงอ่อนมาก */
+    --chart-4: 220 80% 85%;
+    /* ฟ้าอ่อนพาสเทล */
+    --chart-5: 241 80% 87%;
+    /* ไลแลคอ่อน */
 
-    /* Gradient tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(28 95% 55%) 0%, hsl(45 100% 51%) 100%);
-    --gradient-header: linear-gradient(135deg, hsl(28 95% 55%) 0%, hsl(38 95% 52%) 100%);
+    /* Gradient หลัก: นุ่มนวล ไม่เข้มเกินไป */
+    --gradient-primary: linear-gradient(135deg,
+        hsl(253 60% 75%) 0%,
+        /* ม่วงสว่าง */
+        hsl(253 70% 70%) 50%,
+        /* ม่วงกลาง */
+        hsl(236 85% 78%) 100%
+        /* ฟ้าอมม่วงสว่าง */
+      );
+
+    /* Gradient header: สว่างขึ้นมาก */
+    --gradient-header: linear-gradient(135deg,
+        hsl(253 50% 80%) 0%,
+        /* ม่วงอ่อนมาก */
+        hsl(250 60% 75%) 50%,
+        /* ม่วงกลาง */
+        hsl(236 70% 80%) 100%
+        /* ฟ้าพาสเทล */
+      );
   }
 
   .dark {
-    --background: 20 14% 10%;
-    --foreground: 30 20% 96%;
+    /* ดาร์กโหมด: พื้นหลังม่วงเข้ม */
+    --background: 258 48% 14%;
+    --foreground: 251 100% 97%;
 
-    --card: 20 14% 14%;
-    --card-foreground: 30 20% 96%;
+    --card: 258 40% 18%;
+    --card-foreground: 251 100% 97%;
 
-    --popover: 20 14% 14%;
-    --popover-foreground: 30 20% 96%;
+    --popover: 258 40% 18%;
+    --popover-foreground: 251 100% 97%;
 
-    --primary: 28 95% 55%;
+    /* ใช้ hue เดิมแต่ปรับ L ให้เหมาะใน dark */
+    --primary: 253 73% 70%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 45 100% 51%;
-    --secondary-foreground: 20 14% 10%;
+    --secondary: 236 100% 75%;
+    --secondary-foreground: 258 48% 14%;
 
-    --muted: 20 14% 20%;
-    --muted-foreground: 30 20% 65%;
+    --muted: 258 30% 22%;
+    --muted-foreground: 251 40% 80%;
 
-    --accent: 142 76% 36%;
-    --accent-foreground: 30 20% 96%;
+    --accent: 256 84% 72%;
+    --accent-foreground: 258 48% 14%;
 
-    --success: 142 76% 36%;
-    --success-foreground: 30 20% 96%;
+    --success: 150 50% 45%;
+    --success-foreground: 251 100% 97%;
 
-    --warning: 45 100% 51%;
+    --warning: 45 97% 60%;
     --warning-foreground: 20 14% 10%;
 
-    --destructive: 0 62% 40%;
-    --destructive-foreground: 30 20% 96%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 251 100% 97%;
 
-    --border: 20 14% 25%;
-    --input: 20 14% 25%;
-    --ring: 28 95% 55%;
+    --border: 258 30% 30%;
+    --input: 258 30% 30%;
+    --ring: 253 73% 70%;
 
-    --chart-1: 28 95% 55%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 45 100% 51%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 280 65% 60%;
+    --chart-1: 253 73% 70%;
+    --chart-2: 236 100% 75%;
+    --chart-3: 254 87% 80%;
+    --chart-4: 220 92% 76%;
+    --chart-5: 241 91% 80%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(28 95% 55%) 0%, hsl(45 100% 51%) 100%);
-    --gradient-header: linear-gradient(135deg, hsl(28 95% 45%) 0%, hsl(38 95% 42%) 100%);
+    --gradient-primary: linear-gradient(135deg,
+        hsl(258 54% 20%) 0%,
+        hsl(257 71% 55%) 40%,
+        hsl(236 100% 70%) 100%);
+
+    --gradient-header: linear-gradient(135deg,
+        hsl(258 54% 14%) 0%,
+        hsl(257 71% 45%) 40%,
+        hsl(236 100% 65%) 100%);
   }
 }
 

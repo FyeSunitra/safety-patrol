@@ -279,7 +279,7 @@ const FollowUp = () => {
                             {/* ปุ่มอัปเดตสถานะใน tab บันทึกการแก้ไข */}
                             <Button
                                 variant="outline"
-                                size="xs"
+                                size="sm"
                                 className="h-7 px-2 text-xs"
                                 onClick={(e) => {
                                     e.stopPropagation();
