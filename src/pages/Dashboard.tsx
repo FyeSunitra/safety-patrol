@@ -576,8 +576,7 @@ const Dashboard = () => {
                     <div className="space-y-2">
                         <label className="text-sm font-medium">เลือกช่วงวันที่</label>
 
-                        <div className="grid grid-cols-2 gap-2">
-
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <Input
                                 type="date"
                                 ref={startRef}
@@ -595,10 +594,8 @@ const Dashboard = () => {
                                 onClick={() => endRef.current?.showPicker()}
                                 onChange={(e) => setEndDate(e.target.value)}
                             />
-
                         </div>
                     </div>
-
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium">ค้นหาอาคารหรือหน่วยงาน</label>
@@ -616,9 +613,17 @@ const Dashboard = () => {
 
                 <Tabs defaultValue="buildings" className="space-y-6">
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="buildings">สถิติตามอาคาร</TabsTrigger>
-                        <TabsTrigger value="divisions">สถิติภาพรวมหน่วยงาน</TabsTrigger>
-                        <TabsTrigger value="custom">รายการตรวจเพิ่มเติม</TabsTrigger>
+                        <TabsTrigger value="buildings" className="text-sm whitespace-normal break-words text-center">
+                            สถิติตามอาคาร
+                        </TabsTrigger>
+
+                        <TabsTrigger value="divisions" className="text-sm whitespace-normal break-words text-center">
+                            สถิติภาพรวมหน่วยงาน
+                        </TabsTrigger>
+
+                        <TabsTrigger value="custom" className="text-sm whitespace-normal break-words text-center">
+                            รายการตรวจเพิ่มเติม
+                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="buildings" className="space-y-6">
