@@ -1,6 +1,7 @@
 import { InspectionRecord } from "@/types/inspection";
+import html2pdf from "html2pdf.js";
 
-export const generatePDF = (
+export const generatePDF = async (
   inspection: InspectionRecord,
   divisionName?: string,
   departmentName?: string
@@ -144,7 +145,7 @@ export const generatePDF = (
           font-weight: bold;
         }
         .image-cell img {
-          max-width: 220px;   /* ใหญ่ขึ้นนิดหน่อย */
+          max-width: 220px;
           max-height: 220px;
           object-fit: cover;
           margin: 3px;
@@ -333,13 +334,24 @@ export const generatePDF = (
     </body>
     </html>
   `;
-  // Create a new window and print
-  const printWindow = window.open("", "_blank");
-  if (printWindow) {
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.onload = () => {
-      printWindow.print();
-    };
-  }
+
+  // --- แปลง HTML เป็น PDF แล้วสั่งโหลดอัตโนมัติ ---
+  const container = document.createElement("div");
+  container.innerHTML = htmlContent;
+  document.body.appendChild(container);
+
+  const filename = `inspection-${inspection.building}-${inspection.date}.pdf`;
+
+  await html2pdf()
+    .set({
+      margin: 10,
+      filename,
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
+    })
+    .from(container)
+    .save();
+
+  document.body.removeChild(container);
 };

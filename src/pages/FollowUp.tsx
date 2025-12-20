@@ -1,17 +1,38 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+} from "@/components/ui/dialog";
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import {
     ArrowLeft,
     Camera,
@@ -25,36 +46,46 @@ import {
     Calendar,
     FileText,
     Image as ImageIcon,
-    Briefcase
+    Briefcase,
 } from "lucide-react";
-import { useCorrectiveActions, CorrectiveActionData } from "@/hooks/useCorrectiveActions";
+import {
+    useCorrectiveActions,
+    CorrectiveActionData,
+} from "@/hooks/useCorrectiveActions";
 
 const STATUS_OPTIONS = ["กำลังตรวจสอบ", "ดำเนินการแก้ไข", "แก้ไขเสร็จสิ้น"] as const;
-type StatusType = typeof STATUS_OPTIONS[number];
+type StatusType = (typeof STATUS_OPTIONS)[number];
 
-const STATUS_CONFIG: Record<StatusType, { color: string; icon: React.ReactNode; bgColor: string }> = {
+const STATUS_CONFIG: Record<
+    StatusType,
+    { color: string; icon: React.ReactNode; bgColor: string; label: string }
+> = {
     "กำลังตรวจสอบ": {
-        color: "text-warning",
+        label: "รอการแก้ไข",
+        color: "text-destructive",
         icon: <Clock className="h-4 w-4" />,
-        bgColor: "bg-warning/10 border-warning/30"
+        bgColor: "bg-destructive/10 border-destructive/30",
     },
     "ดำเนินการแก้ไข": {
+        label: "ดำเนินการแก้ไข",
         color: "text-primary",
         icon: <FileEdit className="h-4 w-4" />,
-        bgColor: "bg-primary/10 border-primary/30"
+        bgColor: "bg-primary/10 border-primary/30",
     },
     "แก้ไขเสร็จสิ้น": {
+        label: "แก้ไขเสร็จสิ้น",
         color: "text-success",
         icon: <CheckCircle2 className="h-4 w-4" />,
-        bgColor: "bg-success/10 border-success/30"
+        bgColor: "bg-success/10 border-success/30",
     },
 };
 
 const FollowUp = () => {
     const navigate = useNavigate();
     const { actions, loading, updateAction } = useCorrectiveActions();
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [selectedAction, setSelectedAction] = useState<CorrectiveActionData | null>(null);
+
+    const [selectedAction, setSelectedAction] =
+        useState<CorrectiveActionData | null>(null);
     const [editFormData, setEditFormData] = useState({
         status: "" as StatusType,
         action_details: "",
@@ -65,51 +96,76 @@ const FollowUp = () => {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+    // งานที่ยังไม่เสร็จสิ้น (ใช้ใน tab บันทึกการแก้ไข)
+    const activeActions = useMemo(
+        () => actions.filter((a) => a.status !== "แก้ไขเสร็จสิ้น"),
+        [actions]
+    );
 
-    // Group actions by responsible party -> building -> division/department
+    // group งาน active ตามผู้รับผิดชอบ -> อาคาร -> หน่วยงานย่อย
     const groupedByResponsible = useMemo(() => {
-        const groups: Record<string, Record<string, Record<string, CorrectiveActionData[]>>> = {};
-        actions.forEach((action) => {
+        const groups: Record<
+            string,
+            Record<string, Record<string, CorrectiveActionData[]>>
+        > = {};
+
+        activeActions.forEach((action) => {
             const responsible = action.responsible || "ไม่ระบุผู้รับผิดชอบ";
             const building = action.building || "ไม่ระบุอาคาร";
-            const dept = action.department || action.division || "ไม่ระบุหน่วยงาน";
+            const dept = action.department || action.division || "ไม่ระบุหน่วยงานย่อย";
 
             if (!groups[responsible]) groups[responsible] = {};
             if (!groups[responsible][building]) groups[responsible][building] = {};
-            if (!groups[responsible][building][dept]) groups[responsible][building][dept] = [];
+            if (!groups[responsible][building][dept])
+                groups[responsible][building][dept] = [];
 
             groups[responsible][building][dept].push(action);
         });
-        return groups;
-    }, [actions]);
 
-    // Count by responsible
+        return groups;
+    }, [activeActions]);
+
+    // จำนวนงาน active ตามผู้รับผิดชอบ
     const responsibleCounts = useMemo(() => {
         const counts: Record<string, number> = {};
-        actions.forEach((action) => {
+        activeActions.forEach((action) => {
             const key = action.responsible || "ไม่ระบุผู้รับผิดชอบ";
             counts[key] = (counts[key] || 0) + 1;
         });
         return counts;
-    }, [actions]);
+    }, [activeActions]);
 
-    // Summary statistics
+    // สรุปจำนวนทุกสถานะ (ใช้บนการ์ดสรุป 3 ช่องด้านบน)
     const statusSummary = useMemo(() => {
         const summary: Record<StatusType, CorrectiveActionData[]> = {
             "กำลังตรวจสอบ": [],
             "ดำเนินการแก้ไข": [],
             "แก้ไขเสร็จสิ้น": [],
         };
+
         actions.forEach((action) => {
             if (summary[action.status as StatusType]) {
                 summary[action.status as StatusType].push(action);
             }
         });
+
         return summary;
     }, [actions]);
 
+    // group ตามหน่วยงานย่อย (ใช้ใน tab สรุปตามสถานะ)
+    const groupedByDepartment = useMemo(() => {
+        const groups: Record<string, CorrectiveActionData[]> = {};
+
+        actions.forEach((action) => {
+            const dept = action.department || action.division || "ไม่ระบุหน่วยงานย่อย";
+            if (!groups[dept]) groups[dept] = [];
+            groups[dept].push(action);
+        });
+
+        return groups;
+    }, [actions]);
+
     const handleOpenEdit = (action: CorrectiveActionData) => {
-        if (!isLoggedIn) return;
         setSelectedAction(action);
         setEditFormData({
             status: action.status,
@@ -138,9 +194,13 @@ const FollowUp = () => {
     const handleSave = async () => {
         if (!selectedAction) return;
 
-        // Validate required field
         if (!editFormData.action_details.trim()) {
             toast.error("กรุณากรอกรายละเอียดการแก้ไข");
+            return;
+        }
+
+        if (!editFormData.action_date.trim()) {
+            toast.error("กรุณากรอกวันที่ดำเนินการ");
             return;
         }
 
@@ -161,9 +221,12 @@ const FollowUp = () => {
     const renderStatusBadge = (status: StatusType) => {
         const config = STATUS_CONFIG[status];
         return (
-            <Badge variant="outline" className={`${config.color} ${config.bgColor} flex items-center gap-1`}>
+            <Badge
+                variant="outline"
+                className={`${config.color} ${config.bgColor} flex items-center gap-1`}
+            >
                 {config.icon}
-                {status}
+                {config.label}
             </Badge>
         );
     };
@@ -177,33 +240,60 @@ const FollowUp = () => {
                     ? "border-l-primary"
                     : "border-l-warning"
                 }`}
-            onClick={isLoggedIn ? () => handleOpenEdit(action) : undefined}
+            onClick={() => handleOpenEdit(action)}
         >
             <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">{action.item_name}</p>
+                        <p className="font-medium text-foreground truncate">
+                            {action.item_name}
+                        </p>
                         <p className="text-sm text-muted-foreground">{action.category}</p>
+
                         {action.inspection_details && (
                             <div className="mt-2 p-2 bg-destructive/10 rounded border border-destructive/20">
-                                <p className="text-xs font-medium text-destructive">รายละเอียดความผิดปกติ:</p>
-                                <p className="text-xs text-foreground">{action.inspection_details}</p>
+                                <p className="text-xs font-medium text-destructive">
+                                    รายละเอียดความผิดปกติ:
+                                </p>
+                                <p className="text-xs text-foreground">
+                                    {action.inspection_details}
+                                </p>
                             </div>
                         )}
+
                         {action.inspection_recommendations && (
                             <div className="mt-1 p-2 bg-warning/10 rounded border border-warning/20">
-                                <p className="text-xs font-medium text-warning">แนวทางการแก้ไข:</p>
-                                <p className="text-xs text-foreground">{action.inspection_recommendations}</p>
+                                <p className="text-xs font-medium text-warning">
+                                    แนวทางการแก้ไข:
+                                </p>
+                                <p className="text-xs text-foreground">
+                                    {action.inspection_recommendations}
+                                </p>
                             </div>
                         )}
                     </div>
+
                     <div className="flex flex-col items-end gap-2">
-                        {renderStatusBadge(action.status)}
-                        {isLoggedIn && (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
+                        <div className="flex flex-col items-end gap-1">
+                            {renderStatusBadge(action.status as StatusType)}
+                            {/* ปุ่มอัปเดตสถานะใน tab บันทึกการแก้ไข */}
+                            <Button
+                                variant="outline"
+                                size="xs"
+                                className="h-7 px-2 text-xs"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEdit(action);
+                                }}
+                            >
+                                <FileEdit className="h-3 w-3 mr-1" />
+                                อัปเดตสถานะ
+                            </Button>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                 </div>
+
                 {action.inspection_images && action.inspection_images.length > 0 && (
                     <div className="mt-2 flex gap-1">
                         {action.inspection_images.slice(0, 3).map((img, idx) => (
@@ -219,10 +309,13 @@ const FollowUp = () => {
                             />
                         ))}
                         {action.inspection_images.length > 3 && (
-                            <span className="text-xs text-muted-foreground self-center">+{action.inspection_images.length - 3}</span>
+                            <span className="text-xs text-muted-foreground self-center">
+                                +{action.inspection_images.length - 3}
+                            </span>
                         )}
                     </div>
                 )}
+
                 {action.action_date && (
                     <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
@@ -241,19 +334,29 @@ const FollowUp = () => {
             </p>
             {action.inspection_details && (
                 <div>
-                    <p className="text-xs font-medium text-muted-foreground">รายละเอียดความผิดปกติ</p>
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{action.inspection_details}</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                        รายละเอียดความผิดปกติ
+                    </p>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">
+                        {action.inspection_details}
+                    </p>
                 </div>
             )}
             {action.inspection_recommendations && (
                 <div>
-                    <p className="text-xs font-medium text-muted-foreground">แนวทางการแก้ไขที่แนะนำ</p>
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{action.inspection_recommendations}</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                        แนวทางการแก้ไขที่แนะนำ
+                    </p>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">
+                        {action.inspection_recommendations}
+                    </p>
                 </div>
             )}
             {action.inspection_images && action.inspection_images.length > 0 && (
                 <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1">รูปภาพจากผู้ตรวจสอบ</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                        รูปภาพจากผู้ตรวจสอบ
+                    </p>
                     <div className="grid grid-cols-3 gap-2">
                         {action.inspection_images.map((img, idx) => (
                             <img
@@ -285,7 +388,9 @@ const FollowUp = () => {
                         <User className="h-4 w-4 text-muted-foreground mt-0.5" />
                         <div>
                             <p className="text-sm font-medium">ผู้ดำเนินการ</p>
-                            <p className="text-sm text-muted-foreground">{action.action_by}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {action.action_by}
+                            </p>
                         </div>
                     </div>
                 )}
@@ -294,7 +399,9 @@ const FollowUp = () => {
                         <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
                         <div>
                             <p className="text-sm font-medium">วันที่ดำเนินการ</p>
-                            <p className="text-sm text-muted-foreground">{action.action_date}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {action.action_date}
+                            </p>
                         </div>
                     </div>
                 )}
@@ -303,7 +410,9 @@ const FollowUp = () => {
                         <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
                         <div>
                             <p className="text-sm font-medium">รายละเอียดการแก้ไข</p>
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{action.action_details}</p>
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {action.action_details}
+                            </p>
                         </div>
                     </div>
                 )}
@@ -315,6 +424,7 @@ const FollowUp = () => {
                             <div className="grid grid-cols-3 gap-2">
                                 {action.action_images.map((img, idx) => (
                                     <img
+                                        key={idx}
                                         src={img}
                                         alt={`รูปที่ ${idx + 1}`}
                                         className="h-20 w-full rounded object-cover cursor-pointer"
@@ -332,17 +442,11 @@ const FollowUp = () => {
         </div>
     );
 
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
-            setIsLoggedIn(!!data.user);
-        });
-    }, [])
-
     if (loading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
                     <p className="mt-2 text-muted-foreground">กำลังโหลดข้อมูล...</p>
                 </div>
             </div>
@@ -354,13 +458,21 @@ const FollowUp = () => {
             {/* Header */}
             <div className="gradient-header py-6 px-4">
                 <div className="mx-auto max-w-4xl flex items-center gap-4">
-
-                    <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="text-primary-foreground hover:bg-primary-foreground/20">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate("/")}
+                        className="text-primary-foreground hover:bg-primary-foreground/20"
+                    >
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold text-primary-foreground">ติดตามและปรับปรุงแก้ไข</h1>
-                        <p className="text-primary-foreground/80 text-sm">ติดตามสถานะการแก้ไขปัญหา</p>
+                        <h1 className="text-2xl font-bold text-primary-foreground">
+                            ติดตามและปรับปรุงแก้ไข
+                        </h1>
+                        <p className="text-primary-foreground/80 text-sm">
+                            ติดตามสถานะการแก้ไขปัญหา
+                        </p>
                     </div>
                 </div>
             </div>
@@ -374,18 +486,22 @@ const FollowUp = () => {
                         return (
                             <Card key={status} className={`${config.bgColor} border`}>
                                 <CardContent className="p-4 text-center">
-                                    <div className={`flex items-center justify-center gap-2 ${config.color} mb-1`}>
+                                    <div
+                                        className={`flex items-center justify-center gap-2 ${config.color} mb-1`}
+                                    >
                                         {config.icon}
                                         <span className="text-2xl font-bold">{count}</span>
                                     </div>
-                                    <p className="text-xs text-muted-foreground">{status}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {STATUS_CONFIG[status].label}
+                                    </p>
                                 </CardContent>
                             </Card>
                         );
                     })}
                 </div>
 
-                {actions.length === 0 ? (
+                {activeActions.length === 0 && actions.length === 0 ? (
                     <Card>
                         <CardContent className="p-8 text-center">
                             <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-4" />
@@ -398,141 +514,236 @@ const FollowUp = () => {
                 ) : (
                     <Tabs defaultValue="by-responsible" className="w-full">
                         <TabsList className="grid w-full grid-cols-2 bg-muted">
-                            <TabsTrigger value="by-responsible" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                                แยกตามผู้รับผิดชอบ
+                            <TabsTrigger
+                                value="by-responsible"
+                                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                            >
+                                บันทึกการแก้ไข
                             </TabsTrigger>
-                            <TabsTrigger value="by-status" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                            <TabsTrigger
+                                value="by-status"
+                                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                            >
                                 สรุปตามสถานะ
                             </TabsTrigger>
                         </TabsList>
 
-                        {/* By Responsible Tab - Hierarchical View */}
+                        {/* TAB 1: บันทึกการแก้ไข (เฉพาะงานที่ยังไม่เสร็จสิ้น) */}
                         <TabsContent value="by-responsible" className="space-y-4 mt-4">
-                            <Accordion type="multiple" className="w-full space-y-2">
-                                {Object.entries(groupedByResponsible).map(([responsible, buildings]) => (
-                                    <AccordionItem key={responsible} value={responsible} className="border rounded-lg overflow-hidden">
-                                        <AccordionTrigger className="px-4 py-3 hover:no-underline gradient-header">
-                                            <div className="flex items-center gap-2 text-primary-foreground">
-                                                <Briefcase className="h-5 w-5" />
-                                                <span className="font-semibold">{responsible}</span>
-                                                <Badge className="ml-2 bg-primary-foreground/20 text-primary-foreground border-0">
-                                                    {responsibleCounts[responsible]} รายการ
-                                                </Badge>
-                                            </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent className="px-4 pb-4 pt-2">
-                                            <Accordion type="multiple" className="w-full space-y-2">
-                                                {Object.entries(buildings).map(([building, departments]) => (
-                                                    <AccordionItem key={building} value={building} className="border rounded-lg bg-card">
-                                                        <AccordionTrigger className="px-4 py-2 hover:no-underline">
-                                                            <div className="flex items-center gap-2">
-                                                                <Building className="h-4 w-4 text-secondary" />
-                                                                <span className="font-medium">{building}</span>
-                                                                <Badge variant="outline" className="ml-2">
-                                                                    {Object.values(departments).flat().length} รายการ
-                                                                </Badge>
-                                                            </div>
-                                                        </AccordionTrigger>
-                                                        <AccordionContent className="px-4 pb-4">
-                                                            <Accordion type="multiple" className="w-full space-y-2">
-                                                                {Object.entries(departments).map(([dept, items]) => (
-                                                                    <AccordionItem key={dept} value={dept} className="border rounded-lg bg-muted/30">
-                                                                        <AccordionTrigger className="px-4 py-2 hover:no-underline">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <User className="h-4 w-4 text-accent" />
-                                                                                <span className="text-sm">{dept}</span>
-                                                                                <Badge variant="secondary" className="ml-2">
-                                                                                    {items.length} รายการ
-                                                                                </Badge>
-                                                                            </div>
-                                                                        </AccordionTrigger>
-                                                                        <AccordionContent className="px-2 pb-2">
-                                                                            <div className="space-y-3">
-                                                                                {items.map(renderActionCard)}
-                                                                            </div>
-                                                                        </AccordionContent>
-                                                                    </AccordionItem>
-                                                                ))}
-                                                            </Accordion>
-                                                        </AccordionContent>
-                                                    </AccordionItem>
-                                                ))}
-                                            </Accordion>
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                            </Accordion>
-                        </TabsContent>
-
-                        {/* By Status Tab - Shows responsible party updates */}
-                        <TabsContent value="by-status" className="space-y-4 mt-4">
-                            <Accordion type="multiple" className="w-full space-y-2">
-                                {STATUS_OPTIONS.map((status) => {
-                                    const items = statusSummary[status];
-                                    const config = STATUS_CONFIG[status];
-                                    return (
-                                        <AccordionItem key={status} value={status} className={`border rounded-lg ${config.bgColor}`}>
-                                            <AccordionTrigger className="px-4 hover:no-underline">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={config.color}>{config.icon}</span>
-                                                    <span className="font-medium">{status}</span>
-                                                    <Badge variant="secondary" className="ml-2">
-                                                        {items.length} รายการ
-                                                    </Badge>
-                                                </div>
-                                            </AccordionTrigger>
-                                            <AccordionContent className="px-4 pb-4">
-                                                {items.length === 0 ? (
-                                                    <p className="text-sm text-muted-foreground text-center py-4">
-                                                        ไม่มีรายการในสถานะนี้
-                                                    </p>
-                                                ) : (
-                                                    <div className="space-y-4">
-                                                        {items.map((action) => (
-                                                            <Card key={action.id} className="bg-card border">
-                                                                <CardContent className="p-4">
-                                                                    <div className="flex items-start justify-between gap-2 mb-3">
-                                                                        <div>
-                                                                            <p className="font-medium">{action.item_name}</p>
-                                                                            <p className="text-sm text-muted-foreground">{action.category}</p>
-                                                                            <p className="text-xs text-muted-foreground mt-1">
-                                                                                <Building className="h-3 w-3 inline mr-1" />
-                                                                                {action.building} - {action.division}
-                                                                            </p>
-                                                                            <Badge variant="outline" className="mt-2">
-                                                                                ผู้รับผิดชอบ: {action.responsible}
+                            {activeActions.length === 0 ? (
+                                <Card>
+                                    <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                                        ไม่มีงานที่ค้างอยู่ในขณะนี้
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <Accordion type="multiple" className="w-full space-y-2">
+                                    {Object.entries(groupedByResponsible).map(
+                                        ([responsible, buildings]) => (
+                                            <AccordionItem
+                                                key={responsible}
+                                                value={responsible}
+                                                className="border rounded-lg overflow-hidden"
+                                            >
+                                                <AccordionTrigger className="px-4 py-3 hover:no-underline gradient-header">
+                                                    <div className="flex items-center gap-2 text-primary-foreground">
+                                                        <Briefcase className="h-5 w-5" />
+                                                        <span className="font-semibold">
+                                                            {responsible}
+                                                        </span>
+                                                        <Badge className="ml-2 bg-primary-foreground/20 text-primary-foreground border-0">
+                                                            {responsibleCounts[responsible]} รายการ
+                                                        </Badge>
+                                                    </div>
+                                                </AccordionTrigger>
+                                                <AccordionContent className="px-4 pb-4 pt-2">
+                                                    <Accordion
+                                                        type="multiple"
+                                                        className="w-full space-y-2"
+                                                    >
+                                                        {Object.entries(buildings).map(
+                                                            ([building, departments]) => (
+                                                                <AccordionItem
+                                                                    key={building}
+                                                                    value={building}
+                                                                    className="border rounded-lg bg-card"
+                                                                >
+                                                                    <AccordionTrigger className="px-4 py-2 hover:no-underline">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Building className="h-4 w-4 text-secondary" />
+                                                                            <span className="font-medium">
+                                                                                {building}
+                                                                            </span>
+                                                                            <Badge variant="outline" className="ml-2">
+                                                                                {
+                                                                                    Object.values(departments).flat()
+                                                                                        .length
+                                                                                }{" "}
+                                                                                รายการ
                                                                             </Badge>
                                                                         </div>
-                                                                        {isLoggedIn && (
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                size="sm"
-                                                                                onClick={() => handleOpenEdit(action)}
-                                                                            >
-                                                                                <FileEdit className="h-4 w-4 mr-1" />
-                                                                                แก้ไข
-                                                                            </Button>
-                                                                        )}
-                                                                    </div>
-                                                                    {/* Show inspection details from inspector */}
-                                                                    {(action.inspection_details || action.inspection_recommendations || action.inspection_images?.length) &&
-                                                                        renderInspectionDetails(action)
-                                                                    }
-                                                                    {/* Show action details from responsible party */}
-                                                                    {(action.action_details || action.action_date || action.action_images?.length) &&
-                                                                        renderDetailView(action)
-                                                                    }
-                                                                </CardContent>
-                                                            </Card>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    );
-                                })}
-                            </Accordion>
+                                                                    </AccordionTrigger>
+                                                                    <AccordionContent className="px-4 pb-4">
+                                                                        <Accordion
+                                                                            type="multiple"
+                                                                            className="w-full space-y-2"
+                                                                        >
+                                                                            {Object.entries(departments).map(
+                                                                                ([dept, items]) => (
+                                                                                    <AccordionItem
+                                                                                        key={dept}
+                                                                                        value={dept}
+                                                                                        className="border rounded-lg bg-muted/30"
+                                                                                    >
+                                                                                        <AccordionTrigger className="px-4 py-2 hover:no-underline">
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                <User className="h-4 w-4 text-accent" />
+                                                                                                <span className="text-sm">
+                                                                                                    {dept}
+                                                                                                </span>
+                                                                                                <Badge
+                                                                                                    variant="secondary"
+                                                                                                    className="ml-2"
+                                                                                                >
+                                                                                                    {items.length} รายการ
+                                                                                                </Badge>
+                                                                                            </div>
+                                                                                        </AccordionTrigger>
+                                                                                        <AccordionContent className="px-2 pb-2">
+                                                                                            <div className="space-y-3">
+                                                                                                {items.map(renderActionCard)}
+                                                                                            </div>
+                                                                                        </AccordionContent>
+                                                                                    </AccordionItem>
+                                                                                )
+                                                                            )}
+                                                                        </Accordion>
+                                                                    </AccordionContent>
+                                                                </AccordionItem>
+                                                            )
+                                                        )}
+                                                    </Accordion>
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        )
+                                    )}
+                                </Accordion>
+                            )}
                         </TabsContent>
+
+                        {/* TAB 2: สรุปตามสถานะ (แสดงเฉพาะงานที่ "แก้ไขเสร็จสิ้น") */}
+                        {/* TAB 2: สรุปตามสถานะ (ชั้นนอกเป็นสถานะ, ชั้นในเป็นหน่วยงานย่อย) */}
+                        <TabsContent value="by-status" className="space-y-4 mt-4">
+                            {actions.length === 0 ? (
+                                <Card>
+                                    <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                                        ไม่มีรายการให้สรุป
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <Accordion type="multiple" className="w-full space-y-2">
+                                    {STATUS_OPTIONS.map((status) => {
+                                        // งานทั้งหมดในสถานะนี้
+                                        const statusItems = actions.filter((a) => a.status === status);
+                                        if (statusItems.length === 0) return null;
+
+                                        const cfg = STATUS_CONFIG[status];
+
+                                        // group งานสถานะนี้ตามหน่วยงานย่อย
+                                        const byDept: Record<string, CorrectiveActionData[]> = {};
+                                        statusItems.forEach((a) => {
+                                            const dept = a.department || a.division || "ไม่ระบุหน่วยงานย่อย";
+                                            if (!byDept[dept]) byDept[dept] = [];
+                                            byDept[dept].push(a);
+                                        });
+
+                                        return (
+                                            <AccordionItem
+                                                key={status}
+                                                value={status}
+                                                className={`border rounded-lg ${cfg.bgColor}`}
+                                            >
+                                                {/* หัว card สถานะ */}
+                                                <AccordionTrigger className="px-4 hover:no-underline">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={cfg.color}>{cfg.icon}</span>
+                                                        <span className="font-medium">
+                                                            {cfg.label ?? status}
+                                                        </span>
+                                                        <Badge variant="secondary" className="ml-2">
+                                                            {statusItems.length} รายการ
+                                                        </Badge>
+                                                    </div>
+                                                </AccordionTrigger>
+
+                                                {/* ด้านใน: แบ่งตามหน่วยงานย่อย */}
+                                                <AccordionContent className="px-4 pb-4">
+                                                    <Accordion type="multiple" className="w-full space-y-2">
+                                                        {Object.entries(byDept).map(([dept, items]) => (
+                                                            <AccordionItem
+                                                                key={dept}
+                                                                value={`${status}-${dept}`}
+                                                                className="border rounded-lg bg-card"
+                                                            >
+                                                                <AccordionTrigger className="px-4 py-2 hover:no-underline">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <User className="h-4 w-4 text-accent" />
+                                                                        <span className="text-sm">{dept}</span>
+                                                                        <Badge variant="outline" className="ml-2">
+                                                                            {items.length} รายการ
+                                                                        </Badge>
+                                                                    </div>
+                                                                </AccordionTrigger>
+                                                                <AccordionContent className="px-2 pb-2">
+                                                                    <div className="space-y-3">
+                                                                        {items.map((action) => (
+                                                                            <Card key={action.id} className="bg-background border">
+                                                                                <CardContent className="p-4">
+                                                                                    <div className="flex items-start justify-between gap-2 mb-3">
+                                                                                        <div>
+                                                                                            <p className="font-medium">
+                                                                                                {action.item_name}
+                                                                                            </p>
+                                                                                            <p className="text-sm text-muted-foreground">
+                                                                                                {action.category}
+                                                                                            </p>
+                                                                                            <p className="text-xs text-muted-foreground mt-1">
+                                                                                                <Building className="h-3 w-3 inline mr-1" />
+                                                                                                {action.building} - {action.division}
+                                                                                            </p>
+                                                                                            <Badge variant="outline" className="mt-2">
+                                                                                                ผู้รับผิดชอบ: {action.responsible}
+                                                                                            </Badge>
+                                                                                        </div>
+                                                                                        {/* แสดงแค่ badge สถานะ ไม่มีปุ่มแก้ไข */}
+                                                                                        {renderStatusBadge(status)}
+                                                                                    </div>
+
+                                                                                    {(action.inspection_details ||
+                                                                                        action.inspection_recommendations ||
+                                                                                        action.inspection_images?.length) &&
+                                                                                        renderInspectionDetails(action)}
+
+                                                                                    {(action.action_details ||
+                                                                                        action.action_date ||
+                                                                                        action.action_images?.length) &&
+                                                                                        renderDetailView(action)}
+                                                                                </CardContent>
+                                                                            </Card>
+                                                                        ))}
+                                                                    </div>
+                                                                </AccordionContent>
+                                                            </AccordionItem>
+                                                        ))}
+                                                    </Accordion>
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        );
+                                    })}
+                                </Accordion>
+                            )}
+                        </TabsContent>
+
                     </Tabs>
                 )}
             </div>
@@ -548,7 +759,9 @@ const FollowUp = () => {
                         <div className="space-y-4">
                             <div className="bg-muted p-3 rounded-lg">
                                 <p className="font-medium">{selectedAction.item_name}</p>
-                                <p className="text-sm text-muted-foreground">{selectedAction.category}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {selectedAction.category}
+                                </p>
                                 <p className="text-xs text-muted-foreground mt-1">
                                     {selectedAction.building} - {selectedAction.division}
                                 </p>
@@ -557,53 +770,65 @@ const FollowUp = () => {
                                 </Badge>
                             </div>
 
-                            {/* Show inspection details from inspector in dialog */}
-                            {(selectedAction.inspection_details || selectedAction.inspection_recommendations || selectedAction.inspection_images?.length) && (
-                                <div className="space-y-2 p-3 bg-destructive/5 rounded-lg border border-destructive/20">
-                                    <p className="text-sm font-semibold text-destructive flex items-center gap-2">
-                                        <AlertCircle className="h-4 w-4" />
-                                        ข้อมูลจากผู้ตรวจสอบ
-                                    </p>
-                                    {selectedAction.inspection_details && (
-                                        <div>
-                                            <p className="text-xs font-medium text-muted-foreground">รายละเอียดความผิดปกติ</p>
-                                            <p className="text-sm">{selectedAction.inspection_details}</p>
-                                        </div>
-                                    )}
-                                    {selectedAction.inspection_recommendations && (
-                                        <div>
-                                            <p className="text-xs font-medium text-muted-foreground">แนวทางการแก้ไข</p>
-                                            <p className="text-sm">{selectedAction.inspection_recommendations}</p>
-                                        </div>
-                                    )}
-                                    {selectedAction.inspection_images && selectedAction.inspection_images.length > 0 && (
-                                        <div>
-                                            <p className="text-xs font-medium text-muted-foreground mb-1">รูปภาพจากผู้ตรวจ</p>
-                                            <div className="grid grid-cols-3 gap-1">
-                                                {selectedAction.inspection_images.map((img, idx) => (
-                                                    <img
-                                                        key={idx}
-                                                        src={img}
-                                                        alt={`รูปจากผู้ตรวจ ${idx + 1}`}
-                                                        className="h-16 w-full rounded object-cover cursor-pointer"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setPreviewImage(img);
-                                                        }}
-                                                    />
-                                                ))}
+                            {(selectedAction.inspection_details ||
+                                selectedAction.inspection_recommendations ||
+                                selectedAction.inspection_images?.length) && (
+                                    <div className="space-y-2 p-3 bg-destructive/5 rounded-lg border border-destructive/20">
+                                        <p className="text-sm font-semibold text-destructive flex items-center gap-2">
+                                            <AlertCircle className="h-4 w-4" />
+                                            ข้อมูลจากผู้ตรวจสอบ
+                                        </p>
+                                        {selectedAction.inspection_details && (
+                                            <div>
+                                                <p className="text-xs font-medium text-muted-foreground">
+                                                    รายละเอียดความผิดปกติ
+                                                </p>
+                                                <p className="text-sm">
+                                                    {selectedAction.inspection_details}
+                                                </p>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                        )}
+                                        {selectedAction.inspection_recommendations && (
+                                            <div>
+                                                <p className="text-xs font-medium text-muted-foreground">
+                                                    แนวทางการแก้ไข
+                                                </p>
+                                                <p className="text-sm">
+                                                    {selectedAction.inspection_recommendations}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {selectedAction.inspection_images &&
+                                            selectedAction.inspection_images.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                                                        รูปภาพจากผู้ตรวจ
+                                                    </p>
+                                                    <div className="grid grid-cols-3 gap-1">
+                                                        {selectedAction.inspection_images.map((img, idx) => (
+                                                            <img
+                                                                key={idx}
+                                                                src={img}
+                                                                alt={`รูปจากผู้ตรวจ ${idx + 1}`}
+                                                                className="h-16 w-full rounded object-cover cursor-pointer"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setPreviewImage(img);
+                                                                }}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                    </div>
+                                )}
 
                             <div className="space-y-2">
                                 <Label>สถานะการดำเนินการ</Label>
                                 <Select
                                     value={editFormData.status}
                                     onValueChange={(value: StatusType) =>
-                                        setEditFormData(prev => ({ ...prev, status: value }))
+                                        setEditFormData((prev) => ({ ...prev, status: value }))
                                     }
                                 >
                                     <SelectTrigger className="bg-background">
@@ -614,7 +839,7 @@ const FollowUp = () => {
                                             <SelectItem key={status} value={status}>
                                                 <div className="flex items-center gap-2">
                                                     {STATUS_CONFIG[status].icon}
-                                                    {status}
+                                                    {STATUS_CONFIG[status].label}
                                                 </div>
                                             </SelectItem>
                                         ))}
@@ -623,14 +848,23 @@ const FollowUp = () => {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>วันที่ดำเนินการ</Label>
+                                <Label>
+                                    วันที่ดำเนินการ <span className="text-destructive">*</span>
+                                </Label>
                                 <Input
                                     type="date"
                                     value={editFormData.action_date}
                                     onChange={(e) =>
-                                        setEditFormData(prev => ({ ...prev, action_date: e.target.value }))
+                                        setEditFormData((prev) => ({
+                                            ...prev,
+                                            action_date: e.target.value,
+                                        }))
                                     }
-                                    className="bg-background"
+                                    className={`bg-background ${!editFormData.action_date.trim()
+                                        ? "border-destructive"
+                                        : ""
+                                        }`}
+                                    required
                                 />
                             </div>
 
@@ -640,7 +874,10 @@ const FollowUp = () => {
                                     placeholder="ระบุชื่อผู้ดำเนินการ"
                                     value={editFormData.action_by}
                                     onChange={(e) =>
-                                        setEditFormData(prev => ({ ...prev, action_by: e.target.value }))
+                                        setEditFormData((prev) => ({
+                                            ...prev,
+                                            action_by: e.target.value,
+                                        }))
                                     }
                                     className="bg-background"
                                 />
@@ -648,20 +885,29 @@ const FollowUp = () => {
 
                             <div className="space-y-2">
                                 <Label>
-                                    รายละเอียดการแก้ไข <span className="text-destructive">*</span>
+                                    รายละเอียดการแก้ไข{" "}
+                                    <span className="text-destructive">*</span>
                                 </Label>
                                 <Textarea
                                     placeholder="อธิบายรายละเอียดการดำเนินการแก้ไข..."
                                     rows={4}
                                     value={editFormData.action_details}
                                     onChange={(e) =>
-                                        setEditFormData(prev => ({ ...prev, action_details: e.target.value }))
+                                        setEditFormData((prev) => ({
+                                            ...prev,
+                                            action_details: e.target.value,
+                                        }))
                                     }
-                                    className={`bg-background ${!editFormData.action_details.trim() ? 'border-destructive' : ''}`}
+                                    className={`bg-background ${!editFormData.action_details.trim()
+                                        ? "border-destructive"
+                                        : ""
+                                        }`}
                                     required
                                 />
                                 {!editFormData.action_details.trim() && (
-                                    <p className="text-xs text-destructive">จำเป็นต้องกรอกข้อมูล</p>
+                                    <p className="text-xs text-destructive">
+                                        จำเป็นต้องกรอกข้อมูล
+                                    </p>
                                 )}
                             </div>
 
@@ -672,7 +918,9 @@ const FollowUp = () => {
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => document.getElementById("action-image")?.click()}
+                                        onClick={() =>
+                                            document.getElementById("action-image")?.click()
+                                        }
                                     >
                                         <Camera className="mr-2 h-4 w-4" />
                                         เพิ่มรูปภาพ
@@ -698,7 +946,11 @@ const FollowUp = () => {
                                                 <button
                                                     type="button"
                                                     className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs"
-                                                    onClick={() => setNewImages(prev => prev.filter((_, i) => i !== idx))}
+                                                    onClick={() =>
+                                                        setNewImages((prev) =>
+                                                            prev.filter((_, i) => i !== idx)
+                                                        )
+                                                    }
                                                 >
                                                     ×
                                                 </button>
@@ -714,7 +966,10 @@ const FollowUp = () => {
                                         ยกเลิก
                                     </Button>
                                 </DialogClose>
-                                <Button className="flex-1 gradient-primary text-primary-foreground" onClick={handleSave}>
+                                <Button
+                                    className="flex-1 gradient-primary text-primary-foreground"
+                                    onClick={handleSave}
+                                >
                                     บันทึก
                                 </Button>
                             </div>
@@ -723,6 +978,7 @@ const FollowUp = () => {
                 </DialogContent>
             </Dialog>
 
+            {/* Preview image dialog */}
             <Dialog
                 open={!!previewImage}
                 onOpenChange={(open) => {

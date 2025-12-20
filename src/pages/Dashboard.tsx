@@ -137,12 +137,9 @@ const Dashboard = () => {
     // });
 
     const filteredInspections = inspections.filter((inspection) => {
-        if (!startDate || !endDate) {
-            return false;
-        }
-
         const d = new Date(inspection.date);
 
+        // ถ้าไม่เลือกช่วงวัน ให้ผ่านทุกอัน
         const matchesDate =
             (!startDate || d >= new Date(startDate)) &&
             (!endDate || d <= new Date(endDate));
@@ -613,15 +610,15 @@ const Dashboard = () => {
 
                 <Tabs defaultValue="buildings" className="space-y-6">
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="buildings" className="text-sm whitespace-normal break-words text-center">
+                        <TabsTrigger value="buildings" className="text-sm whitespace-normal text-center">
                             สถิติตามอาคาร
                         </TabsTrigger>
 
-                        <TabsTrigger value="divisions" className="text-sm whitespace-normal break-words text-center">
+                        <TabsTrigger value="divisions" className="text-sm whitespace-normal text-center">
                             สถิติภาพรวมหน่วยงาน
                         </TabsTrigger>
 
-                        <TabsTrigger value="custom" className="text-sm whitespace-normal break-words text-center">
+                        <TabsTrigger value="custom" className="text-sm whitespace-normal text-center">
                             รายการตรวจเพิ่มเติม
                         </TabsTrigger>
                     </TabsList>
@@ -1007,7 +1004,7 @@ const Dashboard = () => {
                                             <div className="border-t pt-3">
                                                 <p className="text-xs font-medium mb-2">รายละเอียด:</p>
                                                 <div className="space-y-1">
-                                                    {data.details.map((detail: any, idx: number) => {
+                                                    {data.details.map((detail, idx: number) => {
                                                         const division = DIVISIONS.find((d) => d.id === detail.division);
                                                         const department = division?.departments.find((dept) => dept.id === detail.department);
 
