@@ -15,6 +15,7 @@ export interface InspectionItem {
   inspection_images?: string[];
   inspection_details?: string;
   inspection_recommendations?: string;
+  action_images?: string[];
 }
 
 export interface InspectionRecord {

@@ -13,7 +13,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { InspectionRecord } from "@/types/inspection";
+import { InspectionItem, InspectionRecord } from "@/types/inspection";
 import {
     ArrowLeft,
     Download,
@@ -22,6 +22,107 @@ import {
     Home,
     Search,
 } from "lucide-react";
+import { exportInspectionToExcel } from "@/lib/exportInspectionToExcel";
+
+type RawInspectionRow = {
+    id: string;
+    user_id: string;
+    date: string;
+    time: string | null;
+    building: string;
+    division: string;
+    department: string | null;
+    inspector_name: string | null;
+    items: any;
+    created_at: string;
+    updated_at: string;
+    floor: string | null;
+};
+
+type RawCorrectiveActionRow = {
+    item_id: string;
+    inspection_details?: string | null;
+    inspection_recommendations?: string | null;
+    inspection_images?: string[] | null;
+};
+
+export async function fetchInspectionForExport(
+    inspectionId: string
+): Promise<InspectionRecord | null> {
+    // 1) ดึง inspection ตัวเดียวจาก Supabase
+    const { data: inspections, error: inspectionError } = await supabase
+        .from("inspections")
+        .select("*")
+        .eq("id", inspectionId);
+
+    if (inspectionError) {
+        console.error("Error loading inspection:", inspectionError);
+        return null;
+    }
+
+    const row = (inspections as RawInspectionRow[] | null)?.[0];
+    if (!row) return null;
+
+    // 2) ดึง corrective_actions ของ inspection นี้
+    const { data: correctiveActions, error: correctiveError } = await supabase
+        .from("corrective_actions")
+        .select(
+            "item_id,inspection_details,inspection_recommendations,inspection_images"
+        )
+        .eq("inspection_id", inspectionId);
+
+    if (correctiveError) {
+        console.error("Error loading corrective actions:", correctiveError);
+    }
+
+    const caList = (correctiveActions || []) as RawCorrectiveActionRow[];
+
+    const items: InspectionItem[] = (row.items as any[] | null)?.map(
+        (item: any) => {
+            const ca = caList.find((c) => c.item_id === item.id);
+
+            const baseImages = Array.isArray(item.images) ? item.images : [];
+            const caImages = Array.isArray(ca?.inspection_images)
+                ? (ca!.inspection_images as string[])
+                : [];
+
+            return {
+                id: item.id,
+                category: item.category,
+                name: item.name,
+                status: item.status,
+                details: ca?.inspection_details ?? item.details,
+                recommendations: ca?.inspection_recommendations ?? item.recommendations,
+                images: [...baseImages, ...caImages],
+                responsible: item.responsible,
+                responsibleOther: item.responsibleOther,
+                isCustom: item.isCustom,
+                inspection_images: caImages,
+                inspection_details: ca?.inspection_details,
+                inspection_recommendations: ca?.inspection_recommendations,
+                action_images: item.action_images,
+            } as InspectionItem;
+        }
+    ) ?? [];
+
+    const inspection: InspectionRecord = {
+        id: row.id,
+        date: row.date,
+        time: row.time || undefined,
+        building: row.building,
+        floor: row.floor || "-",
+        division: row.division,
+        department: row.department || undefined,
+        surveyTeam: [],
+        inspectorName: row.inspector_name || undefined,
+        items,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+    };
+
+    return inspection;
+}
+
 
 const Reports = () => {
     const navigate = useNavigate();
@@ -38,6 +139,16 @@ const Reports = () => {
 
     const [selectedDivision, setSelectedDivision] = useState<string>("");
     const [selectedDepartment, setSelectedDepartment] = useState<string>("");
+    const [inspection, setInspection] = useState<InspectionRecord | null>(null);
+    const [correctiveActions, setCorrectiveActions] = useState<
+        {
+            item_id: string;
+            inspection_images?: string[] | null;
+            inspection_details?: string | null;
+            inspection_recommendations?: string | null;
+        }[]
+    >([]);
+
 
     useEffect(() => {
         loadInspections();
@@ -176,81 +287,113 @@ const Reports = () => {
         selectedDepartment,
     ]);
 
-    // Export เป็น Excel (CSV) ต่อ 1 ครั้งตรวจ (reuse logic เดิมจาก Dashboard)
-    const exportInspectionToCSV = (inspection: InspectionRecord) => {
-        const csvRows: string[] = [];
+    // // Export เป็น Excel (CSV) ต่อ 1 ครั้งตรวจ (reuse logic เดิมจาก Dashboard)
+    // const exportInspectionToCSV = (inspection: InspectionRecord) => {
+    //     const csvRows: string[] = [];
 
-        csvRows.push(
-            [
-                "วันที่ตรวจ",
-                "อาคาร",
-                "ชั้น",
-                "หน่วยงานหลัก",
-                "หน่วยงานย่อย",
-                "หมวดหมู่",
-                "รายการ",
-                "สถานะ",
-                "รายละเอียด",
-                "ข้อเสนอแนะ",
-                "ผู้รับผิดชอบ",
-                "คณะผู้สำรวจ",
-            ].join(",")
+    //     csvRows.push(
+    //         [
+    //             "วันที่ตรวจ",
+    //             "อาคาร",
+    //             "ชั้น",
+    //             "หน่วยงานหลัก",
+    //             "หน่วยงานย่อย",
+    //             "หมวดหมู่",
+    //             "รายการ",
+    //             "สถานะ",
+    //             "รายละเอียด",
+    //             "ข้อเสนอแนะ",
+    //             "ผู้รับผิดชอบ",
+    //             "คณะผู้สำรวจ",
+    //         ].join(",")
+    //     );
+
+    //     const divisionName = getDivisionName(inspection.division);
+    //     const departmentName = getDepartmentName(
+    //         inspection.division,
+    //         inspection.department
+    //     );
+
+    //     inspection.items.forEach((item) => {
+    //         const row = [
+    //             inspection.date,
+    //             inspection.building,
+    //             inspection.floor || "-",
+    //             divisionName,
+    //             departmentName,
+    //             item.category,
+    //             item.name,
+    //             item.status === "normal"
+    //                 ? "ปกติ"
+    //                 : item.status === "abnormal"
+    //                     ? "ไม่ปกติ"
+    //                     : "ไม่เกี่ยวข้อง",
+    //             item.details || "-",
+    //             item.recommendations || "-",
+    //             item.responsible || "-",
+    //             inspection.surveyTeam.join("; "),
+    //         ].map((field) => `"${String(field).replace(/"/g, '""')}"`);
+
+    //         csvRows.push(row.join(","));
+    //     });
+
+    //     const csvContent = "\uFEFF" + csvRows.join("\n");
+    //     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    //     const url = URL.createObjectURL(blob);
+    //     const link = document.createElement("a");
+
+    //     const dateStr = inspection.date
+    //         ? new Date(inspection.date)
+    //             .toLocaleDateString("th-TH")
+    //             .replace(/\//g, "-")
+    //         : "";
+
+    //     link.href = url;
+    //     link.download = `inspection-${inspection.building}-${dateStr}.csv`;
+    //     document.body.appendChild(link);
+    //     link.click();
+    //     document.body.removeChild(link);
+    // };
+
+    // แก้ให้รับ inspection เป็นพารามิเตอร์
+    const handleDownloadExcel = async (inspectionId: string) => {
+        const fullInspection = await fetchInspectionForExport(inspectionId);
+        if (!fullInspection) return;
+
+        const division = DIVISIONS.find(
+            (d) => d.id === fullInspection.division
+        );
+        const department = division?.departments.find(
+            (dept) => dept.id === fullInspection.department
         );
 
-        const divisionName = getDivisionName(inspection.division);
-        const departmentName = getDepartmentName(
-            inspection.division,
-            inspection.department
+        await exportInspectionToExcel(
+            fullInspection,
+            division?.name,
+            department?.name
         );
-
-        inspection.items.forEach((item) => {
-            const row = [
-                inspection.date,
-                inspection.building,
-                inspection.floor || "-",
-                divisionName,
-                departmentName,
-                item.category,
-                item.name,
-                item.status === "normal"
-                    ? "ปกติ"
-                    : item.status === "abnormal"
-                        ? "ไม่ปกติ"
-                        : "ไม่เกี่ยวข้อง",
-                item.details || "-",
-                item.recommendations || "-",
-                item.responsible || "-",
-                inspection.surveyTeam.join("; "),
-            ].map((field) => `"${String(field).replace(/"/g, '""')}"`);
-
-            csvRows.push(row.join(","));
-        });
-
-        const csvContent = "\uFEFF" + csvRows.join("\n");
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-
-        const dateStr = inspection.date
-            ? new Date(inspection.date)
-                .toLocaleDateString("th-TH")
-                .replace(/\//g, "-")
-            : "";
-
-        link.href = url;
-        link.download = `inspection-${inspection.building}-${dateStr}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     };
 
-    const handleExportPDF = (inspection: InspectionRecord) => {
-        const division = DIVISIONS.find((d) => d.id === inspection.division);
+
+    const getAllImagesForItem = (item: any): string[] => {
+        if (Array.isArray(item.images)) {
+            // ลบซ้ำเผื่อไว้
+            return Array.from(new Set(item.images));
+        }
+        return [];
+    };
+    const handleExportPDF = async (inspectionId: string) => {
+        const fullInspection = await fetchInspectionForExport(inspectionId);
+        if (!fullInspection) return;
+
+        const division = DIVISIONS.find(
+            (d) => d.id === fullInspection.division
+        );
         const department = division?.departments.find(
-            (dept) => dept.id === inspection.department
+            (dept) => dept.id === fullInspection.department
         );
 
-        generatePDF(inspection, division?.name, department?.name);
+        generatePDF(fullInspection, division?.name, department?.name);
     };
 
     if (loading) {
@@ -465,7 +608,7 @@ const Reports = () => {
                                             <td className="border-b px-4 py-3 align-top">
                                                 <div className="flex flex-wrap gap-3 justify-center">
                                                     <button
-                                                        onClick={() => exportInspectionToCSV(inspection)}
+                                                        onClick={() => handleDownloadExcel(inspection.id)}
                                                         title="ดาวน์โหลด Excel"
                                                         className="hover:scale-110 transition"
                                                     >
@@ -477,7 +620,7 @@ const Reports = () => {
                                                     </button>
 
                                                     <button
-                                                        onClick={() => handleExportPDF(inspection)}
+                                                        onClick={() => handleExportPDF(inspection.id)}
                                                         title="ดาวน์โหลด PDF"
                                                         className="hover:scale-110 transition"
                                                     >

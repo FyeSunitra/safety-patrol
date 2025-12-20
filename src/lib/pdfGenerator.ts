@@ -5,17 +5,25 @@ export const generatePDF = (
   divisionName?: string,
   departmentName?: string
 ) => {
-  const abnormalItems = inspection.items.filter(
+  const itemsWithAllImages = inspection.items.map((item) => ({
+    ...item,
+    allImages: [
+      ...(item.images || []),
+      ...(item.inspection_images || []),
+      ...(item.action_images || []),
+    ],
+  }));
+
+  const abnormalItems = itemsWithAllImages.filter(
     (item) => item.status === "abnormal"
   );
-  const normalItems = inspection.items.filter(
+  const normalItems = itemsWithAllImages.filter(
     (item) => item.status === "normal"
   );
-  const notRelevantItems = inspection.items.filter(
+  const notRelevantItems = itemsWithAllImages.filter(
     (item) => item.status === "not_relevant"
   );
 
-  // Create HTML content for PDF
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -136,11 +144,12 @@ export const generatePDF = (
           font-weight: bold;
         }
         .image-cell img {
-          max-width: 150px;
-          max-height: 150px;
+          max-width: 220px;   /* ใหญ่ขึ้นนิดหน่อย */
+          max-height: 220px;
           object-fit: cover;
-          margin: 2px;
+          margin: 3px;
           border-radius: 4px;
+          display: block;
         }
         .status-badge {
           display: inline-block;
@@ -263,11 +272,11 @@ export const generatePDF = (
               <th>หมวดหมู่</th>
               <th>รายการตรวจ</th>
               <th style="text-align: center;">สถานะ</th>
-              <th style="width: 200px;">หมายเหตุและรูปภาพ</th>
+              <th style="width: 220px;">หมายเหตุและรูปภาพ</th>
             </tr>
           </thead>
           <tbody>
-            ${inspection.items
+            ${itemsWithAllImages
               .map(
                 (item) => `
               <tr>
@@ -302,10 +311,13 @@ export const generatePDF = (
                       : ""
                   }
                   ${
-                    item.images && item.images.length > 0
+                    item.allImages && item.allImages.length > 0
                       ? `<div>
-                        ${item.images
-                          .map((img) => `<img src="${img}" alt="ภาพประกอบ" />`)
+                        ${item.allImages
+                          .map(
+                            (img: string) =>
+                              `<img src="${img}" alt="ภาพประกอบ" />`
+                          )
                           .join("")}
                       </div>`
                       : ""
@@ -321,7 +333,6 @@ export const generatePDF = (
     </body>
     </html>
   `;
-
   // Create a new window and print
   const printWindow = window.open("", "_blank");
   if (printWindow) {

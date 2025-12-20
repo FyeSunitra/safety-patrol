@@ -91,6 +91,23 @@ const ReportDetail = () => {
     }, [id, navigate]);
 
 
+    async function downloadAllImages(images: string[], prefix: string) {
+        for (let i = 0; i < images.length; i++) {
+            const url = images[i];
+            const res = await fetch(url);
+            const blob = await res.blob();
+
+            const ext = blob.type.split("/")[1] || "jpg";
+
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `${prefix}_image_${i + 1}.${ext}`;
+            a.click();
+
+            URL.revokeObjectURL(a.href);
+        }
+    }
+
     const handleDownloadPDF = () => {
         if (!inspection) return;
 
@@ -99,7 +116,19 @@ const ReportDetail = () => {
             (dept) => dept.id === inspection.department
         );
 
-        generatePDF(inspection, division?.name, department?.name);
+        // รวมรูปทุกแหล่งของแต่ละ item มายัดลงใน field images
+        const itemsWithAllImages = inspection.items.map((item) => ({
+            ...item,
+            images: getAllImagesForItem(item), // ใช้ helper ที่คุณมีอยู่แล้วด้านบน
+        }));
+
+        // สร้าง inspection ใหม่สำหรับใช้ใน PDF
+        const inspectionForPdf = {
+            ...inspection,
+            items: itemsWithAllImages,
+        };
+
+        generatePDF(inspectionForPdf as InspectionRecord, division?.name, department?.name);
     };
 
     if (loading) {
@@ -264,9 +293,23 @@ const ReportDetail = () => {
                                                         หมวดหมู่: {item.category}
                                                     </p>
                                                 </div>
-                                                <span className="inline-flex rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
-                                                    ไม่ปกติ
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    {allImages.length > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                downloadAllImages(allImages, item.id)
+                                                            }
+                                                            className="flex items-center gap-1 rounded-full border bg-white px-3 py-1 text-xs hover:bg-muted"
+                                                        >
+                                                            ดาวน์โหลดรูปทั้งหมด
+                                                        </button>
+                                                    )}
+
+                                                    <span className="inline-flex rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                                                        ไม่ปกติ
+                                                    </span>
+                                                </div>
                                             </div>
 
                                             <div className="grid gap-3 text-xs md:text-sm md:grid-cols-2">

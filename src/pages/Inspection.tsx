@@ -135,76 +135,6 @@ const Inspection = () => {
         );
     };
 
-    // const updateItemDetails = async (id: string, field: keyof InspectionItem, value: any) => {
-    //     setItems((prev) =>
-    //         prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    //     );
-
-    //     // Update corrective action in real-time if item is abnormal
-    //     const currentItem = items.find(item => item.id === id);
-    //     if (currentItem?.status === "abnormal") {
-    //         try {
-    //             const updateData: any = {};
-    //             if (field === "responsible") {
-    //                 updateData.responsible = value || "ไม่ระบุ";
-    //             }
-    //             if (field === "details") {
-    //                 updateData.inspection_details = value;
-    //             }
-    //             if (field === "recommendations") {
-    //                 updateData.inspection_recommendations = value;
-    //             }
-
-    //             if (Object.keys(updateData).length > 0) {
-    //                 await supabase
-    //                     .from("corrective_actions")
-    //                     .update(updateData)
-    //                     .like("item_id", id);
-    //             }
-    //         } catch (error) {
-    //             console.error("Error updating corrective action:", error);
-    //         }
-    //     }
-    // };
-
-    // const handleImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    //     const files = e.target.files;
-    //     if (files) {
-    //         const fileArray = Array.from(files);
-    //         const imageUrls: string[] = [];
-
-    //         fileArray.forEach((file) => {
-    //             const reader = new FileReader();
-    //             reader.onloadend = async () => {
-    //                 imageUrls.push(reader.result as string);
-    //                 if (imageUrls.length === fileArray.length) {
-    //                     setItems((prev) =>
-    //                         prev.map((item) =>
-    //                             item.id === id
-    //                                 ? { ...item, images: [...(item.images || []), ...imageUrls] }
-    //                                 : item
-    //                         )
-    //                     );
-
-    //                     // Update corrective action with images if item is abnormal
-    //                     const currentItem = items.find(item => item.id === id);
-    //                     if (currentItem?.status === "abnormal") {
-    //                         try {
-    //                             await supabase
-    //                                 .from("corrective_actions")
-    //                                 .update({ inspection_images: [...(currentItem.images || []), ...imageUrls] })
-    //                                 .like("item_id", id);
-    //                         } catch (error) {
-    //                             console.error("Error updating inspection images:", error);
-    //                         }
-    //                     }
-    //                 }
-    //             };
-    //             reader.readAsDataURL(file);
-    //         });
-    //     }
-    // };
-
     const handleImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
@@ -228,6 +158,19 @@ const Inspection = () => {
                 reader.readAsDataURL(file);
             });
         }
+    };
+
+    const handleRemoveImage = (itemId: string, imageIndex: number) => {
+        setItems((prev) =>
+            prev.map((it) =>
+                it.id === itemId
+                    ? {
+                        ...it,
+                        images: (it.images || []).filter((_, i) => i !== imageIndex),
+                    }
+                    : it
+            )
+        );
     };
 
     const addCustomItem = () => {
@@ -527,16 +470,20 @@ const Inspection = () => {
 
                                             <div className="space-y-2">
                                                 <Label>แนบรูปภาพ</Label>
+
                                                 <div className="flex items-center gap-2">
                                                     <Button
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={() => document.getElementById(`${item.id}-image`)?.click()}
+                                                        onClick={() =>
+                                                            document.getElementById(`${item.id}-image`)?.click()
+                                                        }
                                                     >
                                                         <Camera className="mr-2 h-4 w-4" />
                                                         เพิ่มรูปภาพ
                                                     </Button>
+
                                                     <input
                                                         id={`${item.id}-image`}
                                                         type="file"
@@ -546,15 +493,24 @@ const Inspection = () => {
                                                         onChange={(e) => handleImageUpload(item.id, e)}
                                                     />
                                                 </div>
+
                                                 {item.images && item.images.length > 0 && (
                                                     <div className="mt-2 grid grid-cols-3 gap-2">
                                                         {item.images.map((img, idx) => (
-                                                            <img
-                                                                key={idx}
-                                                                src={img}
-                                                                alt={`รูปที่ ${idx + 1}`}
-                                                                className="h-20 w-full rounded object-cover"
-                                                            />
+                                                            <div key={idx} className="relative">
+                                                                <img
+                                                                    src={img}
+                                                                    alt={`รูปที่ ${idx + 1}`}
+                                                                    className="h-20 w-full rounded object-cover"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveImage(item.id, idx)}
+                                                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center shadow"
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            </div>
                                                         ))}
                                                     </div>
                                                 )}
