@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { InspectionItem, InspectionRecord, InspectionStatus, INSPECTION_CATEGORI
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 const Inspection = () => {
     const navigate = useNavigate();
     const [inspectionData, setInspectionData] = useState<any>(null);
@@ -50,109 +51,159 @@ const Inspection = () => {
         setItems(allItems);
     };
 
-    // Create corrective action in real-time when item is marked as abnormal
-    const createCorrectiveAction = useCallback(async (item: InspectionItem) => {
-        if (!inspectionData) return;
+    // // Create corrective action in real-time when item is marked as abnormal
+    // const createCorrectiveAction = useCallback(async (item: InspectionItem) => {
+    //     if (!inspectionData) return;
 
-        try {
-            // Generate proper UUIDs
-            const correctiveActionId = crypto.randomUUID();
-            const tempInspectionId = crypto.randomUUID();
+    //     try {
+    //         // Generate proper UUIDs
+    //         const correctiveActionId = crypto.randomUUID();
+    //         const tempInspectionId = crypto.randomUUID();
 
-            const { error } = await supabase.from("corrective_actions").insert({
-                id: correctiveActionId,
-                inspection_id: tempInspectionId,
-                item_id: item.id,
-                building: inspectionData.building,
-                division: inspectionData.division,
-                department: inspectionData.department,
-                category: item.category,
-                item_name: item.name,
-                responsible: item.responsible || "ไม่ระบุ",
-                status: "กำลังตรวจสอบ",
-                is_new: true,
-                inspection_details: item.details || null,
-                inspection_recommendations: item.recommendations || null,
-                inspection_images: item.images || [],
-            });
+    //         const { error } = await supabase.from("corrective_actions").insert({
+    //             id: correctiveActionId,
+    //             inspection_id: tempInspectionId,
+    //             item_id: item.id,
+    //             building: inspectionData.building,
+    //             division: inspectionData.division,
+    //             department: inspectionData.department,
+    //             category: item.category,
+    //             item_name: item.name,
+    //             responsible: item.responsible || "ไม่ระบุ",
+    //             status: "กำลังตรวจสอบ",
+    //             is_new: true,
+    //             inspection_details: item.details || null,
+    //             inspection_recommendations: item.recommendations || null,
+    //             inspection_images: item.images || [],
+    //         });
 
-            if (error) {
-                console.error("Error creating corrective action:", error);
-                toast.error("ไม่สามารถบันทึกรายการติดตามแก้ไขได้");
-            } else {
-                toast.info(`ส่งรายการ "${item.name}" ไปติดตามแก้ไขแล้ว`);
-            }
-        } catch (error) {
-            console.error("Error creating corrective action:", error);
-            toast.error("เกิดข้อผิดพลาดในการบันทึก");
-        }
-    }, [inspectionData]);
+    //         if (error) {
+    //             console.error("Error creating corrective action:", error);
+    //             toast.error("ไม่สามารถบันทึกรายการติดตามแก้ไขได้");
+    //         } else {
+    //             toast.info(`ส่งรายการ "${item.name}" ไปติดตามแก้ไขแล้ว`);
+    //         }
+    //     } catch (error) {
+    //         console.error("Error creating corrective action:", error);
+    //         toast.error("เกิดข้อผิดพลาดในการบันทึก");
+    //     }
+    // }, [inspectionData]);
 
-    // Delete corrective action when item is no longer abnormal
-    const deleteCorrectiveAction = useCallback(async (itemId: string) => {
-        try {
-            const { error } = await supabase
-                .from("corrective_actions")
-                .delete()
-                .like("item_id", itemId);
+    // // Delete corrective action when item is no longer abnormal
+    // const deleteCorrectiveAction = useCallback(async (itemId: string) => {
+    //     try {
+    //         const { error } = await supabase
+    //             .from("corrective_actions")
+    //             .delete()
+    //             .like("item_id", itemId);
 
-            if (error) {
-                console.error("Error deleting corrective action:", error);
-            }
-        } catch (error) {
-            console.error("Error deleting corrective action:", error);
-        }
-    }, []);
+    //         if (error) {
+    //             console.error("Error deleting corrective action:", error);
+    //         }
+    //     } catch (error) {
+    //         console.error("Error deleting corrective action:", error);
+    //     }
+    // }, []);
 
-    const updateItemStatus = async (id: string, status: InspectionStatus) => {
-        const currentItem = items.find(item => item.id === id);
+    // const updateItemStatus = async (id: string, status: InspectionStatus) => {
+    //     const currentItem = items.find(item => item.id === id);
 
+    //     setItems((prev) =>
+    //         prev.map((item) => (item.id === id ? { ...item, status } : item))
+    //     );
+
+    //     // If marked as abnormal, create corrective action in real-time
+    //     if (status === "abnormal" && currentItem) {
+    //         await createCorrectiveAction({ ...currentItem, status });
+    //     }
+    //     // If changed from abnormal to something else, remove from corrective actions
+    //     else if (currentItem?.status === "abnormal" && status !== "abnormal") {
+    //         await deleteCorrectiveAction(id);
+    //         toast.info(`ลบรายการ "${currentItem.name}" ออกจากติดตามแก้ไขแล้ว`);
+    //     }
+    // };
+
+    const updateItemStatus = (id: string, status: InspectionStatus) => {
         setItems((prev) =>
             prev.map((item) => (item.id === id ? { ...item, status } : item))
         );
-
-        // If marked as abnormal, create corrective action in real-time
-        if (status === "abnormal" && currentItem) {
-            await createCorrectiveAction({ ...currentItem, status });
-        }
-        // If changed from abnormal to something else, remove from corrective actions
-        else if (currentItem?.status === "abnormal" && status !== "abnormal") {
-            await deleteCorrectiveAction(id);
-            toast.info(`ลบรายการ "${currentItem.name}" ออกจากติดตามแก้ไขแล้ว`);
-        }
     };
 
-    const updateItemDetails = async (id: string, field: keyof InspectionItem, value: any) => {
+    const updateItemDetails = (id: string, field: keyof InspectionItem, value: any) => {
         setItems((prev) =>
             prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
         );
-
-        // Update corrective action in real-time if item is abnormal
-        const currentItem = items.find(item => item.id === id);
-        if (currentItem?.status === "abnormal") {
-            try {
-                const updateData: any = {};
-                if (field === "responsible") {
-                    updateData.responsible = value || "ไม่ระบุ";
-                }
-                if (field === "details") {
-                    updateData.inspection_details = value;
-                }
-                if (field === "recommendations") {
-                    updateData.inspection_recommendations = value;
-                }
-
-                if (Object.keys(updateData).length > 0) {
-                    await supabase
-                        .from("corrective_actions")
-                        .update(updateData)
-                        .like("item_id", id);
-                }
-            } catch (error) {
-                console.error("Error updating corrective action:", error);
-            }
-        }
     };
+
+    // const updateItemDetails = async (id: string, field: keyof InspectionItem, value: any) => {
+    //     setItems((prev) =>
+    //         prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    //     );
+
+    //     // Update corrective action in real-time if item is abnormal
+    //     const currentItem = items.find(item => item.id === id);
+    //     if (currentItem?.status === "abnormal") {
+    //         try {
+    //             const updateData: any = {};
+    //             if (field === "responsible") {
+    //                 updateData.responsible = value || "ไม่ระบุ";
+    //             }
+    //             if (field === "details") {
+    //                 updateData.inspection_details = value;
+    //             }
+    //             if (field === "recommendations") {
+    //                 updateData.inspection_recommendations = value;
+    //             }
+
+    //             if (Object.keys(updateData).length > 0) {
+    //                 await supabase
+    //                     .from("corrective_actions")
+    //                     .update(updateData)
+    //                     .like("item_id", id);
+    //             }
+    //         } catch (error) {
+    //             console.error("Error updating corrective action:", error);
+    //         }
+    //     }
+    // };
+
+    // const handleImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    //     const files = e.target.files;
+    //     if (files) {
+    //         const fileArray = Array.from(files);
+    //         const imageUrls: string[] = [];
+
+    //         fileArray.forEach((file) => {
+    //             const reader = new FileReader();
+    //             reader.onloadend = async () => {
+    //                 imageUrls.push(reader.result as string);
+    //                 if (imageUrls.length === fileArray.length) {
+    //                     setItems((prev) =>
+    //                         prev.map((item) =>
+    //                             item.id === id
+    //                                 ? { ...item, images: [...(item.images || []), ...imageUrls] }
+    //                                 : item
+    //                         )
+    //                     );
+
+    //                     // Update corrective action with images if item is abnormal
+    //                     const currentItem = items.find(item => item.id === id);
+    //                     if (currentItem?.status === "abnormal") {
+    //                         try {
+    //                             await supabase
+    //                                 .from("corrective_actions")
+    //                                 .update({ inspection_images: [...(currentItem.images || []), ...imageUrls] })
+    //                                 .like("item_id", id);
+    //                         } catch (error) {
+    //                             console.error("Error updating inspection images:", error);
+    //                         }
+    //                     }
+    //                 }
+    //             };
+    //             reader.readAsDataURL(file);
+    //         });
+    //     }
+    // };
 
     const handleImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
@@ -162,7 +213,7 @@ const Inspection = () => {
 
             fileArray.forEach((file) => {
                 const reader = new FileReader();
-                reader.onloadend = async () => {
+                reader.onloadend = () => {
                     imageUrls.push(reader.result as string);
                     if (imageUrls.length === fileArray.length) {
                         setItems((prev) =>
@@ -172,19 +223,6 @@ const Inspection = () => {
                                     : item
                             )
                         );
-
-                        // Update corrective action with images if item is abnormal
-                        const currentItem = items.find(item => item.id === id);
-                        if (currentItem?.status === "abnormal") {
-                            try {
-                                await supabase
-                                    .from("corrective_actions")
-                                    .update({ inspection_images: [...(currentItem.images || []), ...imageUrls] })
-                                    .like("item_id", id);
-                            } catch (error) {
-                                console.error("Error updating inspection images:", error);
-                            }
-                        }
                     }
                 };
                 reader.readAsDataURL(file);
@@ -226,33 +264,101 @@ const Inspection = () => {
         }
     };
 
+    // const handleSave = async () => {
+    //     if (!inspectionData) return;
+
+    //     try {
+    //         const { data: user } = await supabase.auth.getUser();
+
+    //         // Remove images from items to avoid storage issues (images are too large for JSON storage)
+    //         const itemsWithoutImages = items.map(item => ({
+    //             ...item,
+    //             images: undefined, // Don't store base64 images in database
+    //         }));
+
+    //         const inspectionId = crypto.randomUUID();
+
+    //         const { error } = await supabase.from("inspections").insert({
+    //             id: inspectionId,
+    //             user_id: user.user?.id,
+    //             date: inspectionData.date,
+    //             time: new Date().toLocaleTimeString('th-TH'),
+    //             building: inspectionData.building,
+    //             division: inspectionData.division,
+    //             department: inspectionData.department,
+    //             inspector_name: inspectionData.surveyTeam?.join(", ") || '',
+    //             items: itemsWithoutImages,
+    //         });
+
+    //         if (error) throw error;
+
+    //         localStorage.removeItem("current_inspection");
+    //         toast.success("บันทึกผลการตรวจสำเร็จ");
+    //         navigate("/");
+    //     } catch (error: any) {
+    //         console.error("Error saving inspection:", error);
+    //         toast.error("ไม่สามารถบันทึกผลการตรวจได้: " + error.message);
+    //     }
+    // };
+
     const handleSave = async () => {
         if (!inspectionData) return;
 
         try {
-            const { data: user } = await supabase.auth.getUser();
+            const { data: authData, error: userError } = await supabase.auth.getUser();
+            if (userError) throw userError;
 
-            // Remove images from items to avoid storage issues (images are too large for JSON storage)
-            const itemsWithoutImages = items.map(item => ({
-                ...item,
-                images: undefined, // Don't store base64 images in database
-            }));
-
+            // ใช้ id เดียวกันสำหรับทั้ง inspections และ corrective_actions
             const inspectionId = crypto.randomUUID();
 
-            const { error } = await supabase.from("inspections").insert({
+            // ไม่เก็บ base64 ลง inspections.items
+            const itemsWithoutImages = items.map((item) => ({
+                ...item,
+                images: undefined,
+            }));
+
+            // 1) บันทึก inspections
+            const { error: inspError } = await supabase.from("inspections").insert({
                 id: inspectionId,
-                user_id: user.user?.id,
+                user_id: authData.user?.id,
                 date: inspectionData.date,
-                time: new Date().toLocaleTimeString('th-TH'),
+                time: new Date().toLocaleTimeString("th-TH"),
                 building: inspectionData.building,
+                floor: inspectionData.floor,
                 division: inspectionData.division,
                 department: inspectionData.department,
-                inspector_name: inspectionData.surveyTeam?.join(", ") || '',
+                inspector_name: inspectionData.surveyTeam?.join(", ") || "",
                 items: itemsWithoutImages,
             });
 
-            if (error) throw error;
+            if (inspError) throw inspError;
+
+            // 2) บันทึก corrective_actions เฉพาะรายการที่ "ไม่ปกติ"
+            const abnormalItems = items.filter((item) => item.status === "abnormal");
+
+            if (abnormalItems.length > 0) {
+                const correctivePayload = abnormalItems.map((item) => ({
+                    inspection_id: inspectionId,
+                    item_id: item.id,
+                    building: inspectionData.building,
+                    division: inspectionData.division,
+                    department: inspectionData.department,
+                    category: item.category,
+                    item_name: item.name,
+                    responsible: item.responsible || "ไม่ระบุ",
+                    status: "กำลังตรวจสอบ" as const,
+                    is_new: true,
+                    inspection_details: item.details || null,
+                    inspection_recommendations: item.recommendations || null,
+                    inspection_images: (item.images || []) as unknown as Json
+                }));
+
+                const { error: caError } = await supabase
+                    .from("corrective_actions")
+                    .insert(correctivePayload);
+
+                if (caError) throw caError;
+            }
 
             localStorage.removeItem("current_inspection");
             toast.success("บันทึกผลการตรวจสำเร็จ");

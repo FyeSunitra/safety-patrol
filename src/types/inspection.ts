@@ -11,6 +11,10 @@ export interface InspectionItem {
   responsible?: string;
   responsibleOther?: string;
   isCustom?: boolean;
+
+  inspection_images?: string[];
+  inspection_details?: string;
+  inspection_recommendations?: string;
 }
 
 export interface InspectionRecord {

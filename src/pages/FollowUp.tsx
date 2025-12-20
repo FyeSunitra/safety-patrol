@@ -63,6 +63,8 @@ const FollowUp = () => {
     });
     const [newImages, setNewImages] = useState<string[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
+
 
     // Group actions by responsible party -> building -> division/department
     const groupedByResponsible = useMemo(() => {
@@ -197,7 +199,9 @@ const FollowUp = () => {
                     </div>
                     <div className="flex flex-col items-end gap-2">
                         {renderStatusBadge(action.status)}
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        {isLoggedIn && (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
                     </div>
                 </div>
                 {action.inspection_images && action.inspection_images.length > 0 && (
@@ -207,7 +211,11 @@ const FollowUp = () => {
                                 key={idx}
                                 src={img}
                                 alt={`รูปจากผู้ตรวจ ${idx + 1}`}
-                                className="h-12 w-12 rounded object-cover"
+                                className="h-12 w-12 rounded object-cover cursor-pointer"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPreviewImage(img);
+                                }}
                             />
                         ))}
                         {action.inspection_images.length > 3 && (
@@ -252,7 +260,11 @@ const FollowUp = () => {
                                 key={idx}
                                 src={img}
                                 alt={`รูปจากผู้ตรวจ ${idx + 1}`}
-                                className="h-20 w-full rounded object-cover"
+                                className="h-20 w-full rounded object-cover cursor-pointer"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPreviewImage(img);
+                                }}
                             />
                         ))}
                     </div>
@@ -303,10 +315,13 @@ const FollowUp = () => {
                             <div className="grid grid-cols-3 gap-2">
                                 {action.action_images.map((img, idx) => (
                                     <img
-                                        key={idx}
                                         src={img}
                                         alt={`รูปที่ ${idx + 1}`}
-                                        className="h-20 w-full rounded object-cover"
+                                        className="h-20 w-full rounded object-cover cursor-pointer"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPreviewImage(img);
+                                        }}
                                     />
                                 ))}
                             </div>
@@ -339,6 +354,7 @@ const FollowUp = () => {
             {/* Header */}
             <div className="gradient-header py-6 px-4">
                 <div className="mx-auto max-w-4xl flex items-center gap-4">
+
                     <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="text-primary-foreground hover:bg-primary-foreground/20">
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
@@ -569,7 +585,11 @@ const FollowUp = () => {
                                                         key={idx}
                                                         src={img}
                                                         alt={`รูปจากผู้ตรวจ ${idx + 1}`}
-                                                        className="h-16 w-full rounded object-cover"
+                                                        className="h-16 w-full rounded object-cover cursor-pointer"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setPreviewImage(img);
+                                                        }}
                                                     />
                                                 ))}
                                             </div>
@@ -698,6 +718,25 @@ const FollowUp = () => {
                                     บันทึก
                                 </Button>
                             </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={!!previewImage}
+                onOpenChange={(open) => {
+                    if (!open) setPreviewImage(null);
+                }}
+            >
+                <DialogContent className="max-w-3xl max-h-[90vh]">
+                    {previewImage && (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <img
+                                src={previewImage}
+                                alt="ภาพขยาย"
+                                className="max-h-[80vh] w-auto max-w-full object-contain rounded-lg"
+                            />
                         </div>
                     )}
                 </DialogContent>
