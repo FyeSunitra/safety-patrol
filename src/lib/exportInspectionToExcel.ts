@@ -1,7 +1,8 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import * as exifr from "exifr";
 import type { InspectionRecord } from "@/types/inspection";
-// รวมรูปทุกแหล่งของ item แล้ว "ลบรูปซ้ำ"
+
 const getAllImagesForItem = (item: any): string[] => {
   const images: string[] = [];
 
@@ -24,22 +25,41 @@ const getAllImagesForItem = (item: any): string[] => {
       }
     });
   }
-
-  // 🔥 ตรงนี้สำคัญ: ตัดรูปที่ URL ซ้ำ ๆ ออก
   return Array.from(new Set(images));
 };
 
-// helper ดึงรูปจาก URL → เป็น base64 สำหรับ exceljs
 async function fetchImageAsBase64(url: string): Promise<string> {
+  // ดึง blob รูปจาก URL
   const res = await fetch(url);
   const blob = await res.blob();
 
-  return await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
+  // สร้าง <img> เพื่อให้ browser decode + หมุนให้ถูกก่อน
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = URL.createObjectURL(blob);
   });
+
+  // ใช้ขนาดรูปตามที่ browser แสดง (หลังจากจัด orientation แล้ว)
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas context not available");
+  }
+
+  // วาดรูปลง canvas แบบไม่หมุนอะไรเพิ่ม
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  // เคลียร์ URL ชั่วคราว
+  URL.revokeObjectURL(img.src);
+
+  // แปลง canvas → base64 (jpeg)
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+  return dataUrl;
 }
 
 export async function exportInspectionToExcel(
@@ -83,7 +103,6 @@ export async function exportInspectionToExcel(
 
     const detailText = item.details || "-";
 
-    // แถวหลักของ item
     const row = sheet.addRow({
       date: inspection.date,
       building: inspection.building,
@@ -102,11 +121,11 @@ export async function exportInspectionToExcel(
 
     if (imageUrls.length === 0) continue;
 
-    const anchorRowBase = row.number - 1; // 0-based
-    const anchorColBase = imageColIndex - 1; // 0-based
+    const anchorRowBase = row.number - 1;
+    const anchorColBase = imageColIndex - 1;
 
-    const colStep = 1.2; // ระยะห่างแนวนอน (ลองปรับ 1.0 – 2.0 ได้)
-    row.height = 140; // ให้แถวสูงพอกับรูป (จะได้เห็นเต็ม)
+    const colStep = 1.2;
+    row.height = 140;
 
     for (let i = 0; i < imageUrls.length; i++) {
       const url = imageUrls[i];
@@ -120,7 +139,7 @@ export async function exportInspectionToExcel(
         sheet.addImage(imageId, {
           tl: {
             col: anchorColBase + 0.1 + i * colStep,
-            row: anchorRowBase + 0.1, // แถวเดียวกัน
+            row: anchorRowBase + 0.1,
           },
           ext: {
             width: thumbSize,
@@ -134,7 +153,6 @@ export async function exportInspectionToExcel(
     }
   }
 
-  // สร้างไฟล์ .xlsx แล้วให้ browser ดาวน์โหลด
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
